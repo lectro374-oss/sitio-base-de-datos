@@ -1,0 +1,404 @@
+EXPLICACION DE LA BASE DE DATOS - tienda_anime_v3
+=================================================
+
+1. OBJETIVO DE LA BASE DE DATOS
+--------------------------------
+
+La base de datos tienda_anime_v3 administra la información principal de una
+tienda online de productos relacionados con anime y coleccionables.
+
+Permite almacenar:
+
+- Los usuarios registrados.
+- Los productos disponibles.
+- El stock de productos.
+- Los productos agregados al carrito de cada usuario.
+- Las ventas realizadas.
+- El detalle de cada venta.
+
+La base de datos utiliza MySQL/MariaDB y el motor InnoDB. InnoDB permite
+trabajar con claves foráneas, transacciones y restricciones de integridad
+referencial.
+
+
+2. ENTIDAD: usuarios
+---------------------
+
+La tabla usuarios almacena los datos de las personas registradas en el
+sistema.
+
+Campos:
+
+- id:
+  Identificador único del usuario. Es la clave primaria y se genera
+  automáticamente.
+
+- nombre:
+  Nombre o nombre de usuario. Es obligatorio y único.
+
+- correo:
+  Correo electrónico del usuario. Es obligatorio y no puede repetirse,
+  porque posee una restricción UNIQUE.
+
+- contraseña:
+  Contraseña del usuario almacenada como hash. Es obligatoria.
+
+- direccion:
+  Dirección del usuario. Es un campo obligatorio.
+
+- es_admin:
+  Indicador de permisos administrativos. 0 representa un usuario normal y
+  1 representa un administrador. Su valor predeterminado es 0.
+
+Clave principal:
+
+- usuarios.id
+
+La tabla usuarios es la entidad principal para identificar quién utiliza el
+sistema, quién tiene productos en el carrito y quién realiza ventas.
+
+
+3. ENTIDAD: figuras
+--------------------
+
+La tabla figuras almacena los productos coleccionables o figuras que se
+ofrecen en la tienda.
+
+Campos:
+
+- id:
+  Identificador único de la figura. Es la clave primaria y se genera
+  automáticamente.
+
+- nombre:
+  Nombre comercial del producto.
+
+- precio:
+  Precio actual del producto. Utiliza DECIMAL(10,2) para guardar valores
+  monetarios con dos decimales.
+
+- stock:
+  Cantidad disponible del producto.
+
+- descripcion:
+  Información descriptiva de la figura. Puede quedar vacía.
+
+- franquicia:
+  Franquicia o serie a la que pertenece el producto.
+
+- imagen:
+  Ruta relativa del archivo de imagen asociado al producto.
+
+Clave principal:
+
+- figuras.id
+
+El campo stock representa la cantidad disponible. Agregar productos al carrito no modifica el stock. El stock se descuenta
+únicamente al confirmar una compra exitosa. Si la compra se cancela o no hay
+unidades suficientes, el stock permanece sin cambios.
+
+
+4. ENTIDAD: libros
+-------------------
+
+La tabla libros almacena libros relacionados con la temática de la tienda.
+
+Campos:
+
+- id:
+  Identificador único del libro. Es la clave primaria y se genera
+  automáticamente.
+
+- nombre:
+  Nombre del libro.
+
+- precio:
+  Precio del libro.
+
+- stock:
+  Cantidad disponible.
+
+- descripcion:
+  Descripción del libro. Puede quedar vacía.
+
+- autor:
+  Autor del libro.
+
+- genero:
+  Género literario.
+
+- editorial:
+  Editorial responsable de la publicación.
+
+- imagen:
+  Ruta relativa de la imagen del libro.
+
+Clave principal:
+
+- libros.id
+
+Actualmente la estructura permite administrar libros aunque los productos
+mostrados inicialmente pertenezcan a la tabla figuras.
+
+
+5. ENTIDAD: carrito
+--------------------
+
+La tabla carrito almacena los productos que cada usuario agregó antes de
+realizar una compra.
+
+Campos:
+
+- id:
+  Identificador único del registro del carrito. Es la clave primaria.
+
+- id_usuario:
+  Usuario propietario del registro. Es una clave foránea hacia usuarios.id.
+
+- id_producto:
+  Identificador del producto agregado.
+
+- tipo_producto:
+  Indica si el producto pertenece a figuras o a libros. Sus valores
+  permitidos son figura y libro.
+
+- nombre:
+  Copia del nombre del producto en el momento en que se agrega.
+
+- precio:
+  Copia del precio del producto en el momento en que se agrega.
+
+- cantidad:
+  Cantidad de unidades del producto en el carrito. Su valor predeterminado
+  es 1.
+
+Clave principal:
+
+- carrito.id
+
+Clave foránea:
+
+- carrito.id_usuario referencia a usuarios.id.
+
+Regla de eliminación:
+
+- ON DELETE CASCADE:
+  Si se elimina un usuario, también se eliminan sus registros del carrito.
+
+Relación con productos:
+
+Los campos id_producto y tipo_producto forman una relación polimórfica.
+Si tipo_producto es figura, id_producto corresponde a figuras.id.
+Si tipo_producto es libro, id_producto corresponde a libros.id.
+
+Debido a esta relación polimórfica no existe una única clave foránea directa
+desde carrito hacia figuras y libros al mismo tiempo.
+
+
+6. ENTIDAD: ventas
+-------------------
+
+La tabla ventas representa una operación de compra realizada por un usuario.
+
+Campos:
+
+- id:
+  Identificador único de la venta. Es la clave primaria.
+
+- id_usuario:
+  Usuario que realizó la venta. Es una clave foránea hacia usuarios.id y
+  puede ser NULL.
+
+- fecha:
+  Fecha y hora de creación de la venta. Se completa automáticamente con la
+  fecha y hora actuales.
+
+Clave principal:
+
+- ventas.id
+
+Clave foránea:
+
+- ventas.id_usuario referencia a usuarios.id.
+
+Regla de eliminación:
+
+- ON DELETE SET NULL:
+  Si se elimina el usuario, la venta permanece registrada, pero su
+  id_usuario queda en NULL. Esto conserva el historial de ventas.
+
+
+7. ENTIDAD: detalle
+--------------------
+
+La tabla detalle contiene los productos incluidos dentro de cada venta.
+
+Una venta puede incluir varios productos, por lo que la tabla ventas guarda
+la información general de la operación y la tabla detalle guarda cada
+producto vendido.
+
+Campos:
+
+- id:
+  Identificador único del detalle. Es la clave primaria.
+
+- id_venta:
+  Venta a la que pertenece el detalle. Es una clave foránea hacia ventas.id.
+
+- id_usuario:
+  Usuario relacionado con el detalle. Es una clave foránea hacia
+  usuarios.id y puede ser NULL.
+
+- id_producto:
+  Identificador del producto vendido.
+
+- tipo_producto:
+  Indica si el producto vendido es una figura o un libro.
+
+- cantidad:
+  Número de unidades vendidas.
+
+- precio_unitario:
+  Precio del producto al momento de la venta.
+
+Claves foráneas:
+
+- detalle.id_venta referencia a ventas.id.
+- detalle.id_usuario referencia a usuarios.id.
+
+Reglas de eliminación:
+
+- ON DELETE CASCADE en id_venta:
+  Si se elimina una venta, también se eliminan sus detalles.
+
+- ON DELETE SET NULL en id_usuario:
+  Si se elimina el usuario, el detalle de la venta permanece, pero
+  id_usuario queda en NULL.
+
+Al igual que carrito, id_producto y tipo_producto forman una relación
+polimórfica con figuras y libros.
+
+
+8. RELACIONES PRINCIPALES
+--------------------------
+
+USUARIOS - CARRITO
+
+Un usuario puede tener muchos registros en carrito.
+Cada registro del carrito pertenece a un solo usuario.
+
+Cardinalidad:
+
+- usuarios 1 : N carrito
+
+
+USUARIOS - VENTAS
+
+Un usuario puede realizar muchas ventas.
+Cada venta pertenece originalmente a un usuario.
+
+Cardinalidad:
+
+- usuarios 1 : N ventas
+
+
+VENTAS - DETALLE
+
+Una venta puede contener muchos detalles.
+Cada detalle pertenece a una sola venta.
+
+Cardinalidad:
+
+- ventas 1 : N detalle
+
+
+USUARIOS - DETALLE
+
+Un usuario puede aparecer en muchos detalles de venta.
+Cada detalle puede estar asociado a un usuario.
+
+Cardinalidad:
+
+- usuarios 1 : N detalle
+
+
+FIGURAS/LIBROS - CARRITO
+
+Un producto puede aparecer en muchos carritos de diferentes usuarios.
+Cada registro del carrito representa un producto y una cantidad.
+
+La relación depende de tipo_producto:
+
+- carrito.tipo_producto = figura:
+  carrito.id_producto corresponde a figuras.id.
+
+- carrito.tipo_producto = libro:
+  carrito.id_producto corresponde a libros.id.
+
+
+FIGURAS/LIBROS - DETALLE
+
+Un producto puede aparecer en muchos detalles de venta.
+Cada detalle identifica el producto vendido mediante id_producto y
+tipo_producto.
+
+
+9. INTEGRIDAD Y RESTRICCIONES
+-----------------------------
+
+- Las claves primarias identifican cada registro de forma única.
+- AUTO_INCREMENT genera identificadores automáticamente.
+- NOT NULL obliga a completar los campos esenciales.
+- UNIQUE evita que dos usuarios tengan el mismo nombre o correo.
+- Las claves foráneas mantienen la relación entre usuarios, ventas, carrito
+  y detalles.
+- ON DELETE CASCADE elimina información dependiente cuando corresponde.
+- ON DELETE SET NULL conserva ventas y detalles históricos aunque se elimine
+  el usuario.
+- ENUM limita tipo_producto a figura o libro.
+- DECIMAL(10,2) permite almacenar precios monetarios correctamente.
+- InnoDB permite utilizar transacciones para actualizar carrito y stock de
+  manera segura.
+
+
+10. MODELO DE STOCK
+-------------------
+
+El stock disponible está almacenado en:
+
+- Tabla: figuras
+- Campo: stock
+
+Agregar, modificar o quitar productos del carrito no cambia el stock. Al
+confirmar la compra, el sistema valida que haya unidades suficientes y
+descuenta la cantidad comprada. Dentro de la misma transacción, registra la
+venta en ventas y cada producto vendido en detalle. Si algún producto no
+tiene unidades suficientes, la operación completa se cancela.
+
+
+11. OBSERVACION DE DISEÑO
+-------------------------
+
+Las tablas carrito y detalle almacenan una copia de nombre y precio. Esto
+permite conservar el valor mostrado al usuario aunque el producto cambie
+posteriormente.
+
+La relación polimórfica facilita trabajar con figuras y libros usando una
+misma estructura, pero no permite que MySQL aplique una clave foránea
+directa hacia ambas tablas. Por eso la aplicación debe validar que
+id_producto exista en la tabla indicada por tipo_producto.
+
+
+12. RESUMEN DEL MODELO
+----------------------
+
+- usuarios administra las cuentas.
+- figuras administra productos coleccionables y su stock.
+- libros administra libros y su stock.
+- carrito administra los productos seleccionados por cada usuario.
+- ventas registra las compras.
+- detalle registra los productos incluidos en cada venta.
+
+La entidad central de usuarios se relaciona con carrito, ventas y detalle.
+Las entidades figuras y libros se relacionan con carrito y detalle mediante
+id_producto y tipo_producto.

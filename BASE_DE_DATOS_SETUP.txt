@@ -1,0 +1,189 @@
+CONFIGURACION DE LA BASE DE DATOS - TIENDA ANIME
+================================================
+
+La base de datos NO se guarda dentro de los archivos PHP/HTML/CSS.
+Los archivos del proyecto guardan el codigo, las imagenes y el diseño.
+Los usuarios, el stock y el carrito se guardan en MySQL/MariaDB.
+
+En otra computadora:
+1. Instala XAMPP y enciende Apache y MySQL.
+2. Abre phpMyAdmin o una consola de MySQL.
+3. Ejecuta todo este archivo.
+4. Copia la carpeta completa del proyecto a:
+   C:\xampp\htdocs\anime
+5. Si tu usuario, contraseña o puerto de MySQL son diferentes,
+   actualiza conexion.php.
+
+Este script crea la estructura de la tienda e inserta los cuatro productos
+iniciales. Los usuarios se registran en la tienda; no se copian contraseñas
+porque deben guardarse como hashes generados por PHP.
+
+IMPORTANTE SOBRE EL STOCK
+=========================
+
+El stock disponible se guarda en figuras.stock (y en libros.stock para libros).
+Agregar productos al carrito no modifica el stock.
+Al confirmar la compra, se valida el stock y se descuentan las unidades
+vendidas. La venta y sus detalles se registran en ventas y detalle.
+Si el stock no alcanza, la compra se cancela sin modificar la base de datos.
+
+SQL
+===
+
+CREATE DATABASE IF NOT EXISTS tienda_anime_v3
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_general_ci;
+
+USE tienda_anime_v3;
+
+CREATE TABLE IF NOT EXISTS usuarios (
+  id INT NOT NULL AUTO_INCREMENT,
+  nombre VARCHAR(100) NOT NULL,
+  correo VARCHAR(150) NOT NULL,
+  `contraseña` VARCHAR(255) NOT NULL,
+  direccion VARCHAR(255) NOT NULL,
+  es_admin TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (id),
+  UNIQUE KEY nombre (nombre),
+  UNIQUE KEY correo (correo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS figuras (
+  id INT NOT NULL AUTO_INCREMENT,
+  nombre VARCHAR(255) NOT NULL,
+  precio DECIMAL(10,2) NOT NULL,
+  stock INT NOT NULL,
+  descripcion TEXT DEFAULT NULL,
+  franquicia VARCHAR(100) NOT NULL,
+  imagen VARCHAR(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS libros (
+  id INT NOT NULL AUTO_INCREMENT,
+  nombre VARCHAR(255) NOT NULL,
+  precio DECIMAL(10,2) NOT NULL,
+  stock INT NOT NULL,
+  descripcion TEXT DEFAULT NULL,
+  autor VARCHAR(100) NOT NULL,
+  genero VARCHAR(100) NOT NULL,
+  editorial VARCHAR(100) NOT NULL,
+  imagen VARCHAR(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS carrito (
+  id INT NOT NULL AUTO_INCREMENT,
+  id_usuario INT NOT NULL,
+  id_producto INT NOT NULL,
+  tipo_producto ENUM('figura','libro') NOT NULL,
+  nombre VARCHAR(255) NOT NULL,
+  precio DECIMAL(10,2) NOT NULL,
+  cantidad INT DEFAULT 1,
+  PRIMARY KEY (id),
+  KEY id_usuario (id_usuario),
+  CONSTRAINT carrito_ibfk_1
+    FOREIGN KEY (id_usuario) REFERENCES usuarios (id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS ventas (
+  id INT NOT NULL AUTO_INCREMENT,
+  id_usuario INT DEFAULT NULL,
+  fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY id_usuario (id_usuario),
+  CONSTRAINT ventas_ibfk_1
+    FOREIGN KEY (id_usuario) REFERENCES usuarios (id)
+    ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS detalle (
+  id INT NOT NULL AUTO_INCREMENT,
+  id_venta INT NOT NULL,
+  id_usuario INT DEFAULT NULL,
+  id_producto INT NOT NULL,
+  tipo_producto ENUM('figura','libro') NOT NULL,
+  cantidad INT NOT NULL,
+  precio_unitario DECIMAL(10,2) NOT NULL,
+  PRIMARY KEY (id),
+  KEY id_venta (id_venta),
+  KEY id_usuario (id_usuario),
+  CONSTRAINT detalle_ibfk_1
+    FOREIGN KEY (id_venta) REFERENCES ventas (id)
+    ON DELETE CASCADE,
+  CONSTRAINT detalle_ibfk_2
+    FOREIGN KEY (id_usuario) REFERENCES usuarios (id)
+    ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT INTO figuras
+  (id, nombre, precio, stock, descripcion, franquicia, imagen)
+VALUES
+  (1, 'Broly Funko Pop', 45000.00, 10, 'Broly Funko Pop', 'Anime', 'images/broly-funko-pop.png'),
+  (2, 'Optimus Prime Figura', 28500.00, 10, 'Optimus Prime Figura', 'Anime', 'images/optimus-prime.png'),
+  (3, 'Caja Cartas Pokémon', 19900.00, 10, 'Caja Cartas Pokémon', 'Anime', 'images/pokemon-cartas.png'),
+  (4, 'Peluche Bulbasaur', 12000.00, 10, 'Peluche Bulbasaur', 'Anime', 'images/bulbasaur-plush.png')
+ON DUPLICATE KEY UPDATE
+  nombre = VALUES(nombre),
+  precio = VALUES(precio),
+  descripcion = VALUES(descripcion),
+  franquicia = VALUES(franquicia),
+  imagen = VALUES(imagen);
+
+ASIGNAR EL PRIMER ADMINISTRADOR
+===============================
+
+Primero registra una cuenta desde la tienda. Luego ejecuta este comando,
+cambiando NOMBRE_DE_USUARIO por el nombre exacto de esa cuenta:
+
+UPDATE usuarios SET es_admin = 1 WHERE nombre = 'NOMBRE_DE_USUARIO';
+
+Después de eso, ese administrador podrá otorgar permisos a otros usuarios
+desde el panel de administración.
+
+CHECK
+=====
+
+SELECT id, nombre, precio, stock FROM figuras;
+SELECT id, nombre, correo FROM usuarios;
+SELECT id_usuario, id_producto, nombre, cantidad, precio FROM carrito;
+
+CONEXION ACTUAL DEL PROYECTO
+============================
+
+conexion.php usa estos valores:
+
+Servidor: localhost
+Usuario: root
+Contraseña: vacia
+Base de datos: tienda_anime_v3
+
+Si MySQL tiene otra contraseña, cambia conexion.php:
+
+$conexion = mysqli_connect(
+    "localhost",
+    "root",
+    "TU_CONTRASEÑA",
+    "tienda_anime_v3"
+);
+
+ARCHIVOS QUE TAMBIEN DEBES COPIAR
+=================================
+
+index.php
+login.html
+login.php
+registro.html
+registrar.php
+carrito.php
+admin.php
+agregar_carrito.php
+logout.php
+inicio.php
+conexion.php
+style.css
+images\broly-funko-pop.png
+images\optimus-prime.png
+images\pokemon-cartas.png
+images\bulbasaur-plush.png
